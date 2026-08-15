@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OmniCreator AI — Comment Triage</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <header class="flex flex-wrap items-center justify-between gap-4 mb-8">
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight">OmniCreator AI</h1>
+      <p class="text-slate-400 text-sm">Instagram comment triage — human-approved auto-reply</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="poll-status" class="text-sm text-slate-400"></span>
+      <button id="poll-now-btn"
+        class="bg-indigo-600 hover:bg-indigo-500 transition-colors text-white font-medium px-4 py-2 rounded-lg shadow">
+        Poll Now
+      </button>
+    </div>
+  </header>
+
+  <section id="stats" class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-slate-400 text-xs uppercase tracking-wide">Total Comments</div>
+      <div id="stat-total" class="text-2xl font-bold mt-1">0</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-slate-400 text-xs uppercase tracking-wide">Pending</div>
+      <div id="stat-pending" class="text-2xl font-bold mt-1">0</div>
+    </div>
+    <div class="bg-slate-900 border border-amber-700/50 rounded-xl p-4">
+      <div class="text-amber-400 text-xs uppercase tracking-wide">VIP Leads</div>
+      <div id="stat-vip" class="text-2xl font-bold mt-1 text-amber-300">0</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-slate-400 text-xs uppercase tracking-wide">Replies Posted</div>
+      <div id="stat-posted" class="text-2xl font-bold mt-1">0</div>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <div class="text-slate-400 text-xs uppercase tracking-wide">Spam Filtered</div>
+      <div id="stat-spam" class="text-2xl font-bold mt-1">0</div>
+    </div>
+  </section>
+
+  <section class="mb-8">
+    <h2 class="text-lg font-semibold text-amber-300 mb-3 flex items-center gap-2">
+      🚨 VIP Leads — Business Collaborations
+    </h2>
+    <div id="leads-panel" class="space-y-3">
+      <p class="text-slate-500 text-sm">No collaboration leads yet.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-lg font-semibold mb-3">Comment Feed</h2>
+    <div id="comment-feed" class="space-y-3">
+      <p class="text-slate-500 text-sm">No comments yet. Click "Poll Now" to fetch from Instagram.</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const CATEGORY_STYLES = {
+  FAN_PRAISE: "bg-emerald-900/40 text-emerald-300 border-emerald-700/50",
+  BUSINESS_COLLABORATION: "bg-amber-900/40 text-amber-300 border-amber-700/50",
+  RESOURCE_REQUEST: "bg-sky-900/40 text-sky-300 border-sky-700/50",
+  SPAM: "bg-slate-800 text-slate-500 border-slate-700",
+};
+
+const STATUS_STYLES = {
+  PENDING_APPROVAL: "bg-slate-800 text-slate-300",
+  POSTED: "bg-emerald-900/50 text-emerald-300",
+  REJECTED: "bg-rose-900/50 text-rose-300",
+  SPAM_LOGGED: "bg-slate-800 text-slate-500",
+  PENDING_CLASSIFICATION: "bg-slate-800 text-slate-400",
+};
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str ?? "";
+  return div.innerHTML;
+}
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+async function fetchJSON(url, options) {
+  const resp = await fetch(url, options);
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(data.detail || `Request failed (${resp.status})`);
+  }
+  return data;
+}
+
+async function refreshStats() {
+  try {
+    const stats = await fetchJSON("/api/stats");
+    document.getElementById("stat-total").textContent = stats.total_comments;
+    document.getElementById("stat-pending").textContent = stats.pending_approvals;
+    document.getElementById("stat-vip").textContent = stats.vip_leads;
+    document.getElementById("stat-posted").textContent = stats.replies_posted;
+    document.getElementById("stat-spam").textContent = stats.spam_filtered;
+  } catch (e) { console.error(e); }
+}
+
+function renderCategoryBadge(category, confidence) {
+  const cls = CATEGORY_STYLES[category] || CATEGORY_STYLES.SPAM;
+  const pct = confidence != null ? Math.round(confidence * 100) : null;
+  return `<span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full border ${cls}">
+    ${escapeHtml(category || "PENDING")}${pct !== null ? ` · ${pct}%` : ""}
+  </span>`;
+}
+
+function renderStatusBadge(status) {
+  const cls = STATUS_STYLES[status] || STATUS_STYLES.PENDING_CLASSIFICATION;
+  return `<span class="text-xs font-medium px-2 py-1 rounded-full ${cls}">${escapeHtml(status)}</span>`;
+}
+
+function renderComment(c) {
+  const isSpam = c.status === "SPAM_LOGGED";
+  const isPending = c.status === "PENDING_APPROVAL";
+  const cardCls = isSpam ? "opacity-50 border-slate-800" : "border-slate-800";
+
+  let actionArea = "";
+  if (isPending) {
+    actionArea = `
+      <textarea
+        class="w-full mt-2 bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        rows="2" data-reply-input="${c.id}">${escapeHtml(c.suggested_reply || "")}</textarea>
+      <div class="flex gap-2 mt-2">
+        <button class="approve-btn bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-3 py-1.5 rounded-lg" data-id="${c.id}">Approve</button>
+        <button class="reject-btn bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium px-3 py-1.5 rounded-lg" data-id="${c.id}">Reject</button>
+      </div>
+      <p class="error-msg text-rose-400 text-xs mt-1 hidden" data-error-for="${c.id}"></p>
+    `;
+  } else if (c.suggested_reply) {
+    actionArea = `<p class="text-sm text-slate-400 mt-2 border-l-2 border-slate-700 pl-2">
+      <span class="text-slate-500">Reply:</span> ${escapeHtml(c.suggested_reply)}</p>`;
+  }
+
+  return `
+  <div class="bg-slate-900 border rounded-xl p-4 ${cardCls}">
+    <div class="flex items-start justify-between gap-3 flex-wrap">
+      <div>
+        <span class="font-semibold text-slate-100">@${escapeHtml(c.username)}</span>
+        <span class="text-slate-500 text-xs ml-2">${timeAgo(c.created_at)}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        ${renderCategoryBadge(c.category, c.confidence)}
+        ${renderStatusBadge(c.status)}
+      </div>
+    </div>
+    <p class="text-slate-300 text-sm mt-2">${escapeHtml(c.text)}</p>
+    ${actionArea}
+  </div>`;
+}
+
+function renderLead(c) {
+  return `
+  <div class="bg-amber-950/20 border border-amber-800/40 rounded-xl p-4">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <span class="font-semibold text-amber-200">@${escapeHtml(c.username)}</span>
+      ${renderStatusBadge(c.status)}
+    </div>
+    <p class="text-slate-300 text-sm mt-1">${escapeHtml(c.text)}</p>
+    ${c.summary ? `<p class="text-amber-300/90 text-sm mt-2 italic">"${escapeHtml(c.summary)}"</p>` : ""}
+  </div>`;
+}
+
+async function refreshComments() {
+  try {
+    const comments = await fetchJSON("/api/comments");
+    const feed = document.getElementById("comment-feed");
+    feed.innerHTML = comments.length
+      ? comments.map(renderComment).join("")
+      : `<p class="text-slate-500 text-sm">No comments yet. Click "Poll Now" to fetch from Instagram.</p>`;
+
+    document.querySelectorAll(".approve-btn").forEach(btn => {
+      btn.addEventListener("click", () => approveComment(btn.dataset.id));
+    });
+    document.querySelectorAll(".reject-btn").forEach(btn => {
+      btn.addEventListener("click", () => rejectComment(btn.dataset.id));
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function refreshLeads() {
+  try {
+    const leads = await fetchJSON("/api/leads");
+    const panel = document.getElementById("leads-panel");
+    panel.innerHTML = leads.length
+      ? leads.map(renderLead).join("")
+      : `<p class="text-slate-500 text-sm">No collaboration leads yet.</p>`;
+  } catch (e) { console.error(e); }
+}
+
+async function approveComment(id) {
+  const textarea = document.querySelector(`[data-reply-input="${id}"]`);
+  const errorEl = document.querySelector(`[data-error-for="${id}"]`);
+  try {
+    await fetchJSON(`/api/comments/${id}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reply_text: textarea ? textarea.value : null }),
+    });
+    if (errorEl) errorEl.classList.add("hidden");
+    await refreshAll();
+  } catch (e) {
+    if (errorEl) {
+      errorEl.textContent = e.message;
+      errorEl.classList.remove("hidden");
+    }
+  }
+}
+
+async function rejectComment(id) {
+  try {
+    await fetchJSON(`/api/comments/${id}/reject`, { method: "POST" });
+    await refreshAll();
+  } catch (e) { console.error(e); }
+}
+
+async function pollNow() {
+  const btn = document.getElementById("poll-now-btn");
+  const statusEl = document.getElementById("poll-status");
+  btn.disabled = true;
+  btn.classList.add("opacity-60");
+  statusEl.textContent = "Polling...";
+  try {
+    const result = await fetchJSON("/api/poll-now", { method: "POST" });
+    statusEl.textContent = `Done — ${result.new_comments} new comment(s).`;
+    await refreshAll();
+  } catch (e) {
+    statusEl.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("opacity-60");
+  }
+}
+
+async function refreshAll() {
+  await Promise.all([refreshStats(), refreshComments(), refreshLeads()]);
+}
+
+document.getElementById("poll-now-btn").addEventListener("click", pollNow);
+
+refreshAll();
+setInterval(refreshAll, 5000);
+</script>
+</body>
+</html>
