@@ -24,7 +24,7 @@ def _get_gemini_model():
     try:
         import google.generativeai as genai
         genai.configure(api_key=api_key)
-        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        _gemini_model = genai.GenerativeModel("gemini-flash-latest")
     except Exception as exc:
         logger.warning("Gemini init failed for reply generation, using templates: %s", exc)
         _gemini_model = None
