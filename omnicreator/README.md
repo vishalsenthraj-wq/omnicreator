@@ -43,6 +43,21 @@ returns a clear "Instagram not configured" message instead of crashing.
 | `IG_BUSINESS_ACCOUNT_ID` | For real polling/posting | Your Instagram Business Account ID. |
 | `CREATOR_NAME` | No (defaults to "the creator") | Used to personalize generated replies. |
 
+## Verified against the real account
+
+Tested end-to-end with real credentials during this build:
+- Real polling works — successfully fetched 10 real recent media items and queried their
+  comments via `graph.instagram.com`. The account's most recent posts currently have 0
+  comments, so `Poll Now` correctly reports `new_comments: 0` — that's expected, not a bug.
+  Post a real comment (or ask a friend to) on a recent post, then hit "Poll Now" to see the
+  full pipeline run.
+- Real Gemini classification and reply generation both verified working, using model
+  `gemini-flash-latest` (the originally-planned `gemini-1.5-flash` is deprecated/unavailable
+  for this key — confirmed via `genai.list_models()` and switched over).
+- Approve → real reply posting was **not** exercised yet since there are no live comments to
+  approve against. Once a real comment comes in via polling, approving it will hit the real
+  `POST /{comment-id}/replies` endpoint — test this yourself once you have a real comment queued.
+
 ## How to demo
 
 1. Start the app (`python main.py`) with your `.env` filled in.
@@ -67,8 +82,8 @@ returns a clear "Instagram not configured" message instead of crashing.
   error (404/400/403), the client automatically retries the same call against
   `graph.facebook.com` with the same access token, since Meta has historically supported
   Instagram Business accounts through both hosts depending on API version/setup path.
-  **Document here which host actually worked for you during testing** — update this section
-  once you've run a real poll cycle.
+  **Verified against the real account provided during this build: `graph.instagram.com`
+  (the primary host) works directly** — no fallback to `graph.facebook.com` was needed.
 - All Graph API errors (expired token, rate limits, permission errors) are caught and logged
   with a clear message; the app never crashes on an Instagram API failure. `Poll Now` in the
   UI will surface the exact error message returned by the API.
