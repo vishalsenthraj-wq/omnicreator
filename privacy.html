@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — OmniCreator AI</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 720px; margin: 0 auto; padding: 2rem 1.25rem 4rem; line-height: 1.6; color: #1a1a1a; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; }
+  .updated { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+  ul { padding-left: 1.25rem; }
+  a { color: #2952cc; }
+  code { background: #f2f2f2; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>Privacy Policy — OmniCreator AI</h1>
+<p class="updated">Last updated: August 15, 2026</p>
+
+<p>OmniCreator AI ("the app") is a comment-triage tool for a single connected Instagram
+Business Account. This policy explains what data the app accesses, how it is used, and how
+it is stored.</p>
+
+<h2>What data we access</h2>
+<p>Using the Instagram Graph API and the permissions granted by the connected account's owner,
+the app reads:</p>
+<ul>
+  <li>Recent posts (media) on the connected Instagram Business Account</li>
+  <li>Public comments left on those posts, including the commenter's username and comment text</li>
+</ul>
+<p>The app does not access Instagram direct messages, does not access any account other than
+the one explicitly connected by its owner, and does not access data belonging to Instagram
+users beyond what is necessary to display and reply to their public comments.</p>
+
+<h2>How the data is used</h2>
+<ul>
+  <li>Each new comment is classified into one of four categories (fan praise, business
+  collaboration inquiry, resource request, or spam) using Google's Gemini AI, with the
+  comment text sent to Gemini's API for that purpose.</li>
+  <li>For non-spam comments, a suggested reply is drafted, either by Gemini AI or by a
+  built-in template, personalized with the commenter's username.</li>
+  <li>Comments identified as potential business/sponsorship inquiries trigger a push
+  notification to the account owner's phone via ntfy.sh, so real opportunities are not missed.</li>
+</ul>
+
+<h2>Human approval before any public action</h2>
+<p><strong>The app never posts anything to Instagram automatically.</strong> Every suggested
+reply is held in a "pending approval" state and displayed to the account owner in a private
+dashboard. A reply is only posted back to Instagram, via the Instagram Graph API, after the
+account owner explicitly clicks "Approve" — and they may edit the reply text first, or reject
+it instead so nothing is posted.</p>
+
+<h2>Data storage</h2>
+<p>Comment data, classification results, and reply status are stored locally in a SQLite
+database on the machine running the app. This data is not sold, shared with advertisers, or
+used for any purpose beyond operating the comment-triage workflow described above.</p>
+
+<h2>Third-party services used</h2>
+<ul>
+  <li><strong>Instagram Graph API (Meta)</strong> — to read comments and post approved replies</li>
+  <li><strong>Google Gemini API</strong> — to classify comments and draft suggested replies</li>
+  <li><strong>ntfy.sh</strong> — to deliver push notifications for business-collaboration leads</li>
+</ul>
+<p>Each of these services processes the minimum data necessary to perform its function (e.g.,
+comment text sent to Gemini for classification). Refer to each provider's own privacy policy
+for how they handle data sent to their APIs.</p>
+
+<h2>Data retention and deletion</h2>
+<p>Data is retained locally for as long as the account owner runs the app. The account owner
+may delete all stored data at any time by deleting the local database file.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy can be directed to: <a href="mailto:ramkumarm0621@gmail.com">ramkumarm0621@gmail.com</a></p>
+
+</body>
+</html>
